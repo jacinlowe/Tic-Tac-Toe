@@ -74,8 +74,9 @@ class Game:
         self.update_turn()
 
     def decrease_move(self, move_number: int, player: list[int]):
+        print(f"player before decrease: {player}, {move_number}")
         player.remove(move_number)
-        print(player)
+        print(f"player after decrease: {player}")
 
     def can_overwrite(self, index: BOARD_INDEX, cell: Cell):
         row, col = index

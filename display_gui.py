@@ -29,27 +29,70 @@ class DisplayGui(tk.Frame):
     def initialize_ui(self):
         self.parent.title("7 Tac Toe")
         self.pack(fill=tk.BOTH, expand=1)
+        self._initialize_menu()
         self._initialize_grid()
         self._initialize_counters()
-        self._initialize_play_strategy()
 
     def change_player(self, choice: tk.StringVar):
         value = choice.get()
         print(value)
+
+        if value == "0":
+            self.new_game()
         if value == "1":
-            # partial(new_game, self.parent)()
-            self.parent.destroy()
-            game = Game(isCpu=True)
-            root = tk.Tk()
-            gui = DisplayGui(root, game, 1)
-            root.mainloop()
+            self.new_game()
+        if value == "2":
+            self.new_game()
+
+    def _initialize_menu(self):
+        gamemode_va = tk.IntVar()
+        gamemode_va.set(0)
+        menubar = tk.Menu(self)
+        file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(
+            # label="Reset Game", command=partial(new_game, self.parent)
+            label="Reset Game",
+            command=self.new_game,
+        )
+
+        gamemode_menu = tk.Menu(file_menu, tearoff=False)
+
+        gamemode_menu.add_radiobutton(
+            label="VS CPU",
+            value=0,
+            variable=self.radio,
+            state=tk.ACTIVE,
+            command=(lambda: self.change_player(self.radio)),
+        )
+        gamemode_menu.add_radiobutton(
+            label="VS Smart CPU",
+            value=1,
+            variable=self.radio,
+            command=(lambda: self.change_player(self.radio)),
+        )
+        gamemode_menu.add_radiobutton(
+            label="VS Player",
+            value=2,
+            variable=self.radio,
+            command=(lambda: self.change_player(self.radio)),
+        )
+        file_menu.add_cascade(label="Game Modes", menu=gamemode_menu)
+        file_menu.add_separator()
+
+        file_menu.add_command(label="Exit", command=self.destroy)
+        self.parent.config(menu=menubar)
+        menubar.add_cascade(label="File", menu=file_menu)
+
+    def test_cmd(self):
+        pass
 
     def _initialize_grid(self):
+        grid_frame = tk.Frame(self)
         for i in range(3):
             for j in range(3):
                 index = (i + 1) * (j + 1)
                 button = tk.Button(
-                    self,
+                    grid_frame,
                     text="",
                     font=("Helvetica", "20"),
                     width=4,
@@ -58,9 +101,10 @@ class DisplayGui(tk.Frame):
                 )
                 button.grid(row=i, column=j)
                 self.button_list.append(button)
+        grid_frame.pack()
 
     def intialize_move_list(self):
-        self.move_buttons = ButtonPanel(self.parent)
+        self.move_buttons = ButtonPanel(self)
         self.move_buttons.init_btns(self.game.p1_move_list)
 
     def set_current_number(self, num: int):
@@ -70,52 +114,19 @@ class DisplayGui(tk.Frame):
         self.current_number = None
 
     def _initialize_counters(self):
-        frame2 = tk.Frame(self.parent)
+        frame2 = tk.Frame(self)
         self.turn_label = tk.Label(frame2, text=f"Turn {self.game.turn}", font=FONT2)
         self.turn_count = tk.Label(frame2, text=f"Moves: {self.game.count}", font=FONT2)
         self.status_label = tk.Label(frame2, text=f"{self.game.win_state}", font=FONT2)
         self.moves_left = tk.Label(frame2, text=f"{self.move_buttons}", font=FONT2)
-        restart = tk.Button(
-            frame2, text="New game", command=partial(new_game, self.parent), font=FONT3
-        )
+
         self.intialize_move_list()
         self.status_label.grid(row=0)
         # self.moves_left.grid(row=1)
         self.turn_label.grid(row=2)
         self.turn_count.grid(row=3)
 
-        restart.grid(row=4)
         frame2.pack()
-
-    def _initialize_play_strategy(self):
-
-        frame3 = tk.Frame(self.parent)
-
-        player_vs_player = tk.Radiobutton(
-            frame3,
-            text="Player vs Player",
-            command=(lambda: self.change_player(self.radio)),
-            variable=self.radio,
-            value=0,
-        )
-        player_vs_computer = tk.Radiobutton(
-            frame3,
-            text="Player vs Computer",
-            command=(lambda: self.change_player(self.radio)),
-            variable=self.radio,
-            value=1,
-        )
-        player_vs_smart_computer = tk.Radiobutton(
-            frame3,
-            text="Player vs Smart Computer",
-            command=(lambda: self.change_player(self.radio)),
-            variable=self.radio,
-            value=2,
-        )
-        player_vs_player.grid(row=0, pady=5, padx=5, sticky="W")
-        player_vs_computer.grid(row=1, pady=5, padx=5, sticky="W")
-        player_vs_smart_computer.grid(row=2, pady=5, padx=5, sticky="W")
-        frame3.pack(anchor="w")
 
     def update_counters(self):
         self.turn_count.config(text=f"Moves: {self.game.count}")
@@ -158,6 +169,12 @@ class DisplayGui(tk.Frame):
         # if self.current_number == None:
         #     return
         btn_num = self.move_buttons.active_btn
+
+        if btn_num == None:
+            self.update_status("Please select a value then select a grid position!")
+            self.bind_board()
+            return
+
         cell = Cell(self.game.turn, int(btn_num))
         can_update = self.game.do_turn(index, cell)
         if not can_update:
@@ -172,7 +189,8 @@ class DisplayGui(tk.Frame):
             # Display a graphic or show player in big letters that they won or lost
             return
         self.update_move_list_display()
-        print(self.game.logger.get_log())
+        for i in self.game.logger.get_log():
+            print(i)
         self.bind_board()
 
     def unbind_board(self):
@@ -182,6 +200,14 @@ class DisplayGui(tk.Frame):
     def bind_board(self):
         for btn in self.button_list:
             btn["state"] = "normal"
+
+    def new_game(self):
+        root = self.parent
+        gamestate = self.radio.get()
+        isCpu = True if gamestate == "0" or gamestate == "1" else False
+        self.destroy()
+        game = Game(isCpu=isCpu)
+        gui = DisplayGui(root, game, int(gamestate))
 
 
 def callback(arg1, arg2: callable):
